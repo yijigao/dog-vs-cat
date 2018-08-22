@@ -20,34 +20,36 @@
 #### 1.3 评价指标
 模型评估标准是交叉熵LogLoss函数，log loss 越小表示神经网络对于数据集有着较好的分类效果。  
 
-$$
-LogLoss = - \frac {1}{n}  \sum_{i=1}^n[y_ilog(\hat y_i)+(1-y_i)log(1-\hat y_i)]
-$$  
+<img src="https://github.com/yijigao/dog-vs-cat/blob/master/img/eq1.png" width = "400" height = "60" alt="图片名称" align=Center/>  
 
-其中
-* $n$ 表示测试集的图像数量
-* $\hat{y}_i$ 表示图像是狗的概率
-* $y_i$ 1 代表图像是狗, 0 表示是猫
-* $log()$ 代表自然对数
+<img src="https://github.com/yijigao/dog-vs-cat/blob/master/img/eq2.png" width = "250" height = "100" alt="图片名称" align=Center/>  
 
 ### 2. 分析
 
-#### 2.1 数据的探索  
+#### 2.1 数据的探索与可视化  
 
 数据集来源是Kaggle[3], 训练集是25000张包含猫或狗图像，每张图像都已经在文件名标注好了猫/狗。猫狗图片数量各占一半。
 而测试集则是12500张未标注猫狗属性的图像。  
 
 <img src="https://github.com/yijigao/dog-vs-cat/blob/master/img/1.jpg" width = "380" height = "440" alt="图片名称" align=Center/>   
 
-从训练集中的大部分图来看，照片多为日常拍摄，清晰度不错，人眼能很好的识别出猫和狗。当然也有部分图片是由人抱着动物拍的，而且图中的猫狗太小，很难分辨，这种图片属于"脏数据"，如果这些数据会对结果造成大的影响，则需要将其删除。另外，也需要注意到图片尺寸各不一样，高度和宽度都从几十到500以上，这对于数据训练来说是不利的，需要预处理使输入尺寸一致。
+从训练集中的大部分图来看，照片多为日常拍摄，清晰度不错，人眼能很好的识别出猫和狗。当然也有部分图片是由人抱着动物拍的，而且图中的猫狗太小，很难分辨，这种图片属于"脏数据"，如果这些数据会对结果造成大的影响，则需要将其删除。
 
 <img src="https://github.com/yijigao/dog-vs-cat/blob/master/img/cat.3697.jpg" width = "140" height = "130" alt="图片名称" align=Center/>  
 
-#### 2.2 探索性可视化
+另外，也需要注意到图片尺寸各不一样，高度和宽度分布都从几十到500以上，这对于数据训练来说是不利的，为了使输入图像的尺寸一致，项目中将用到Keras的图片生产器（ImageDataGenerator）对图像尺寸进行变换。
 
-#### 2.3 算法与方法
+<img src="https://github.com/yijigao/dog-vs-cat/blob/master/img/size_distibution.png" width = "700" height = "400" alt="图片名称" align=Center/> 
 
-#### 2.4 基准测试
+#### 2.2 算法与方法
+
+本项目采用迁移-融合学习的方法来构建训练神经网络。迁移学习（Transfer Learning）是指使用在一个任务中预训练好的模型。将此模型重新用于第二个相关任务的机器学习技术[4]。
+
+在本项目中，我将使用多个已经在ImageNet上完成训练的网络模型进行迁移。ImageNet任务就是图像识别分类， 因此在ImageNet数据上训练好的模型本身对于图像特征有很好的提取能力，可以说，使用预训练好的模型迁移至猫狗分类是可行的，并且相对于专门构建模型会有更好的训练效果。
+
+
+#### 2.3 基准测试
+
 项目要求是达到kaggle top10%。目前Kaggle该项目Leaderboard一共1314参赛选手，第131名成绩是0.06127。因此基准得分必须小于0.06127。
 
 本项目基础模型采用Xception[4], Xception 是一种轻量化模型，由Google 在2016年10月发表， Xception基于Inception V3[5], 其结构如下图所示，分为Entry flow, Middle flow, Exit flow，其中Entry flow 包含8层卷积，Middle flow 包含24层卷积， 而Exit flow 包含4层卷积，共计36层。
@@ -89,7 +91,7 @@ train_dog = [x for x in train_files if 'dog' in x]
 
 20000, 5000
 ```
-<img src="https://github.com/yijigao/dog-vs-cat/blob/master/img/split_train_valid.png" width = "400" height = "400" alt="图片名称" align=Center/>
+<img src="https://github.com/yijigao/dog-vs-cat/blob/master/img/split_train_valid.png" width = "400" height = "300" alt="图片名称" align=Center/>
 
 ##### 创建符号连接
 创建符号连接的好处是，不用手动再去复制一遍图片，避免不必要的麻烦，节省空间和时间
@@ -151,12 +153,15 @@ validation_generator = validation_datagen.flow_from_directory(
         class_mode='binary')
 ```
 统一尺寸后的图片如下图所示
-<img src="https://github.com/yijigao/dog-vs-cat/blob/master/img/resized.png" width = "400" height = "400" alt="图片名称" align=Center/>
+
+<img src="https://github.com/yijigao/dog-vs-cat/blob/master/img/resized.png" width = "600" height = "600" alt="图片名称" align=Center/>
 
 
 #### 3.2 实施
 
-该部分包含以下步骤（代码详见`base_model_xception.ipynb`）
+该部分代码详见`base_model_xception.ipynb`
+
+该部分包含以下步骤
 * 构建Xception神经网络
 * 训练数据，按照Val_loss调整参数
 * 保存最佳模型
@@ -168,7 +173,10 @@ validation_generator = validation_datagen.flow_from_directory(
 而开放97层以上权重后， 得分达到0.04664， val_loss=0.0360, val_acc=0.9920。低于目标的0.0617。我们将以此结果作为基准。
 
 #### 3.3 改进
-单独使用开放权重后的Xception就已经能到达项目要求， 以上述得分为基准， 需要获得比基准更好的得分。参考mentor-杨培文的经验[6], 综合多个不同的模型，将各个模型的网络输出的特征向量保存下来， 综合三个模型的训练结果，可以获得更高的准确率，从而提高得分。
+
+该部分详细代码见`迁移-融合学习.ipynb`， 方法参考了[7]
+
+单独使用开放权重后的Xception就已经能到达项目要求， 以上述得分为基准， 需要获得比基准更好的得分。参考mentor-杨培文的经验[7], 综合多个不同的模型，将各个模型的网络输出的特征向量保存下来， 综合三个模型的训练结果，可以获得更高的准确率，从而提高得分。
 
 因此，借鉴上述参考资料的已有经验， 我选择使用融合Xception, Densenet201，InceptionV3 这三个模型， 分别预训练， 导出特征向量。
 ```Python3
@@ -206,8 +214,11 @@ write_feature_data(InceptionV3, (299, 299), train_data, test_data, batch_size=1,
 
 #### 4.1 模型评估与验证
 
+如上所述， 本项目最终选用基于Xception、DenseNet201、InceptionV3三个基础模型建立的融合模型， 相比基准测试使用的单一Xception模型， 得分得到明显提升。该模型最终在测试集上的得分是0.03834，满足了项目要求。
+
 ### 5. 结论与思考
 
+本项目开始选用的经过Imagenet训练过的模型去预测测试集， 经过开放权重后， Xception模型就已经达到了项目要求。 让我惊讶的是， 综合多个预训练模型的训练结果， 可以明显提高预测得分。并且， 保存训练好的模型的特征向量， 然后在融合模型中载入， 无需重复训练， 很快就能得到训练结果， 这样既提高了训练得分， 还能节省大量训练时间。因此， 使用迁移-融合的方法能够很好地应用于图像分类问题。
 
 
 ### 6. 参考文献
@@ -218,8 +229,10 @@ write_feature_data(InceptionV3, (299, 299), train_data, test_data, batch_size=1,
 
 [3] : https://www.kaggle.com/c/dogs-vs-cats-redux-kernels-edition
 
-[4] : Chollet, François. "Xception: Deep learning with depthwise separable convolutions." arXiv preprint (2017): 1610-02357.  
+[4] : https://en.wikipedia.org/wiki/Transfer_learning
 
-[5] : Szegedy, Christian, Vincent Vanhoucke, Sergey Ioffe, Jon Shlens, and Zbigniew Wojna. "Rethinking the inception architecture for computer vision." In Proceedings of the IEEE conference on computer vision and pattern recognition, pp. 2818-2826. 2016.
+[5] : Chollet, François. "Xception: Deep learning with depthwise separable convolutions." arXiv preprint (2017): 1610-02357.  
 
-[6] : https://github.com/ypwhs/dogs_vs_cats
+[6] : Szegedy, Christian, Vincent Vanhoucke, Sergey Ioffe, Jon Shlens, and Zbigniew Wojna. "Rethinking the inception architecture for computer vision." In Proceedings of the IEEE conference on computer vision and pattern recognition, pp. 2818-2826. 2016.
+
+[7] : https://github.com/ypwhs/dogs_vs_cats
