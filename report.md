@@ -6,7 +6,15 @@
 #### 1.1 项目概述
 从图像中判断一张图是猫还是狗，似乎是一个非常容易的问题，恐怕三岁小孩就能做到。让人失望的是，人类拥有最先进的机器和计算设备，依然在图像识别方面表现非常吃力[1]。
 
-所幸的是，随着近些年处理器、图形处理器的性能的飞速提升，带来了机器学习、深度学习领域的飞速发展，计算机已经拥有足够的图形处理性能，可以通过大量的训练标记数据，经过深度学习算法，开始逐步“学会”去识别图片。这也是本项目的目标，让计算机“学会”判断一张图上的动物是猫，还是狗。这是图像识别分类问题。目前主流的图像识别分类方法是采用深度学习卷积神经网络（Convolutional neural net,CNN）[2]。卷积神经网络通过卷积层和池化层来实现对图像特征的提取和筛选。目前流行的深度学习框架有TensorFloww、Caffe、Keras。
+所幸的是，随着近些年处理器、图形处理器的性能的飞速提升，带来了机器学习、深度学习领域的飞速发展，计算机已经拥有足够的图形处理性能，可以通过大量的训练标记数据，经过深度学习算法，开始逐步“学会”去识别图片。这也是本项目的目标，让计算机“学会”判断一张图上的动物是猫，还是狗。
+
+深度神经网络作为深度学习技术的一种，由于相对于传统机器学习技术具有更高的准确度，目前已成为解决图像识别问题的最主要的工具。 神经网络顾名思义是由神经元组成的网络，一个神经元根据输出值通过激活函数计算输出值。通常的激活函数由sigmoid函数， ReLu函数等。将多个神经元彼此连接起来就构成了神经网络。经典的神经网络由输入层和输出层组成，每一层都可以有多个神经元构成。如果在输入层和输出层之间加入更多的层（隐藏层）则构成了深度神经网络。
+
+<img src="https://github.com/yijigao/dog-vs-cat/blob/master/img/DL_net.png" width = "500" height = "300" alt="图片名称" align=Center/>  
+
+本项目数据来源于Kaggle[2]的一个竞赛项目。对于此类问题，目前主流的图像识别分类方法是采用深度学习卷积神经网络（Convolutional neural net,CNN）[3]。卷积神经网络通过卷积层和池化层来实现对图像特征的提取和筛选。目前流行的深度学习框架有TensorFloww、Caffe、Keras。
+
+
 
 #### 1.2 问题陈述
 
@@ -67,6 +75,13 @@ Xception的优势是，在给定的硬件资源下，可以尽可能的增加网
 之前提到，我们将使用迁移学习（Transfer Learning）的方法来训练、预测。使用Xception、DenseNet201、InceptionV神经神经网络结构。而使用Keras的ImageDataGenerator需要将不同种类的图片分在不同的文件夹中，并且， Xception默认的图片尺寸299x299，而原始数据图片尺寸大小不一，因此需要对图片进行缩放或裁剪。
 
 ##### 解压原始数据集`train.zip`, `test.zip`
+
+##### 异常值处理
+
+该部分代码见`异常值清理.ipynb`
+
+前面已经指出， 数据集存在异常值， 有部分图片既非狗，也非猫。但是训练集有25000张照片，人工处理太费时费力。参考使用预训练模型自动检测并剔除异常数据的方法[6]
+
 ##### 按猫狗对文件进行分类
 
 ```Python3
@@ -174,9 +189,9 @@ validation_generator = validation_datagen.flow_from_directory(
 
 #### 3.3 改进
 
-该部分详细代码见`迁移-融合学习.ipynb`， 方法参考了[7]
+该部分详细代码见`迁移-融合学习.ipynb`， 方法参考了[8]
 
-单独使用开放权重后的Xception就已经能到达项目要求， 以上述得分为基准， 需要获得比基准更好的得分。参考mentor-杨培文的经验[7], 综合多个不同的模型，将各个模型的网络输出的特征向量保存下来， 综合三个模型的训练结果，可以获得更高的准确率，从而提高得分。
+单独使用开放权重后的Xception就已经能到达项目要求， 以上述得分为基准， 需要获得比基准更好的得分。参考mentor-杨培文的经验[8], 综合多个不同的模型，将各个模型的网络输出的特征向量保存下来， 综合三个模型的训练结果，可以获得更高的准确率，从而提高得分。
 
 因此，借鉴上述参考资料的已有经验， 我选择使用融合Xception, Densenet201，InceptionV3 这三个模型， 分别预训练， 导出特征向量。
 ```Python3
@@ -225,14 +240,16 @@ write_feature_data(InceptionV3, (299, 299), train_data, test_data, batch_size=1,
 
 [1] : 李飞飞：如何教计算机理解图片. http://open.163.com/movie/2015/3/Q/R/MAKN9A24M_MAKN9QAQR.html
 
-[2] : Krizhevsky A, Sutskever I, Hinton G E. Imagenet classification with deep convolutional neural networks[C]//Advances in neural information processing systems. 2012: 1097-1105.
+[2] : https://www.kaggle.com/c/dogs-vs-cats-redux-kernels-edition
 
-[3] : https://www.kaggle.com/c/dogs-vs-cats-redux-kernels-edition
+[3] : Krizhevsky A, Sutskever I, Hinton G E. Imagenet classification with deep convolutional neural networks[C]//Advances in neural information processing systems. 2012: 1097-1105.
 
 [4] : https://en.wikipedia.org/wiki/Transfer_learning
 
 [5] : Chollet, François. "Xception: Deep learning with depthwise separable convolutions." arXiv preprint (2017): 1610-02357.  
 
-[6] : Szegedy, Christian, Vincent Vanhoucke, Sergey Ioffe, Jon Shlens, and Zbigniew Wojna. "Rethinking the inception architecture for computer vision." In Proceedings of the IEEE conference on computer vision and pattern recognition, pp. 2818-2826. 2016.
+[6] : https://zhuanlan.zhihu.com/p/34068451
 
-[7] : https://github.com/ypwhs/dogs_vs_cats
+[7] : Szegedy, Christian, Vincent Vanhoucke, Sergey Ioffe, Jon Shlens, and Zbigniew Wojna. "Rethinking the inception architecture for computer vision." In Proceedings of the IEEE conference on computer vision and pattern recognition, pp. 2818-2826. 2016.
+
+[8] : https://github.com/ypwhs/dogs_vs_cats
