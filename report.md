@@ -273,7 +273,7 @@ validation_generator = validation_datagen.flow_from_directory(
 
 <img src="https://github.com/yijigao/dog-vs-cat/blob/master/img/best_learning_fig.png" width = "473" height = "640" alt="图片名称" align=Center/>
 
-如上所述， 本项目最终选用基于Xception、DenseNet201、InceptionV3三个基础模型建立的融合模型， 相比基准测试使用的单一Xception模型， 得分得到明显提升。该模型最终在测试集上的得分是`0.03796`，满足了项目要求。
+如上所述， 本项目最终选用基于Xception、DenseNet201、InceptionV3三个基础模型建立的融合模型， 相比基准测试使用的单一Xception模型， 得分得到明显提升。该模型最终在测试集上的得分是`0.03758`，满足了项目要求。
 
 #### 4.2 改进
 
