@@ -241,34 +241,6 @@ validation_generator = validation_datagen.flow_from_directory(
 单独使用开放权重后的Xception就已经能到达项目要求， 以上述得分为基准， 需要获得比基准更好的得分。参考mentor-杨培文的经验[10], 综合多个不同的模型，将各个模型的网络输出的特征向量保存下来， 综合三个模型的训练结果，可以获得更高的准确率，从而提高得分。
 
 因此，借鉴上述参考资料的已有经验， 我选择使用融合Xception, Densenet201，InceptionV3 这三个模型， 分别预训练， 导出特征向量。各个子模型的权重采用ImageNet权重， 去掉了各个模型的分类器（Top层），并将器GlobalAveragePooling2D的输出合并传递给分类器（output layer）。训练时，固定除了分类器以外的权重。
-```Python3
-def write_feature_data(MODEL, image_shape, train_data, test_data, batch_size, preprocess_input = None):
-    input_tensor = Input((image_shape[0], image_shape[1], 3))
-    x = input_tensor
-    if preprocess_input:
-        x = Lambda(preprocess_input)(x)
-    
-    base_model = MODEL(input_tensor=x, weights='imagenet', include_top=False)
-    base_model.save_weights(f'{base_model.name}-imagenet.h5')
-    
-    model = Model(base_model.input, GlobalAveragePooling2D()(base_model.output))
-
-    gen = ImageDataGenerator()
-    train_generator = gen.flow_from_directory(train_data, image_shape, shuffle=False, 
-                                              batch_size=batch_size)
-    test_generator = gen.flow_from_directory(test_data, image_shape, shuffle=False, 
-                                             batch_size=batch_size, class_mode=None)
-    train_feature = model.predict_generator(train_generator, train_generator.samples, verbose=1)
-    test_feature = model.predict_generator(test_generator, test_generator.samples, verbose=1)
-    with h5py.File(f"feature_{base_model.name}.h5") as h:
-        h.create_dataset("train", data=train_feature)
-        h.create_dataset("test", data=test_feature)
-        h.create_dataset("label", data=train_generator.classes)
-
-write_feature_data(Xception, (299, 299), train_data, test_data, batch_size=1, preprocess_input=xception.preprocess_input)
-write_feature_data(DenseNet201, (224, 224), train_data, test_data, batch_size=1, preprocess_input=densenet.preprocess_input)
-write_feature_data(InceptionV3, (299, 299), train_data, test_data, batch_size=1, preprocess_input=inception_v3.preprocess_input)
-```
 
 依次得到3个特征向量文件`feature_densenet201.h5, feature_inception_v3.h5, feature_xception.h5`, 然后构建模型，融合模型分类器如下图所示。其中输入特征为合并了的特征向量， 模型采用`adadelta`优化器训练， 保留20%的数据作为验证集， 在训练过程保证存在验证集上损失函数最小的模型权重。经过20代训练，val_loss最小能达到0.0156，val_acc达0.9956
 
@@ -276,20 +248,36 @@ write_feature_data(InceptionV3, (299, 299), train_data, test_data, batch_size=1,
 
 在测试集上预测并提交kaggle进行提交，最终得到kaggle得分为`0.03834`。为避免预测数据为0或1带来的log函数溢出问题， 采用clip方式，使预测结果最小值为0.005， 最大值为0.995。
 
+最初的融合模型没有去除异常值，考虑将异常值可能造成的影响，剔除了39张异常图片，使用同样的模型参数进行训练。异常值查找按以上方法剔除。
+提出异常图片后，Kaggle预测结果提升至`0.03768`
+
+#### 3.3 优化、调参
+
+该部分详细代码见`融合模型-调参.ipynb`
+
+为了得到更好的分数， 我对模型部分参数进行了调整， 主要调整的是优化器`optimiser`和`dropout`， 下表为不同optimiser和dropout下的kaggle得分， 最后发现，优化器整体kaggle得分排序为`adadelta > sgd > adam`， 而dropout=`0.8`时得分最优， 于是，我得到的最佳参数时使用 `adadelta`作为优化器，设置`dropout`为`0.8`， 得到的最好成绩时`0.03758` 。
+
+
+| dropout | 0.3 | 0.5 | 0.8 | 1 |      
+| ---- |:----:|:----:|:----:| ----:|  
+| adadelta|0.03832 | 0.03768 | **0.03758** | 0.03875 |      
+| adam | 0.04072 | 0.03899 | 0.03856 | 0.03927 |      
+| sgd | 0.03840 | 0.03819 | 0.03768 | 0.03832 |      
+
+
 ### 4. 结果
 
 #### 4.1 模型评估与验证
 
-融合模型训练过程acc和loss数据如下。使用融合模型很快达到收敛，val_acc稳定在0.995以上， val_loss在0.012左右徘徊， 说明模型准确性非常好。
+融合模型训练过程acc和loss数据如下。使用融合模型训练5代就达到收敛，val_acc稳定在0.995以上， val_loss在0.012左右徘徊， 说明模型准确性非常好。
 
-<img src="https://github.com/yijigao/dog-vs-cat/blob/master/img/leaning_figure.png" width = "473" height = "640" alt="图片名称" align=Center/>
+<img src="https://github.com/yijigao/dog-vs-cat/blob/master/img/best_learning_fig.png" width = "473" height = "640" alt="图片名称" align=Center/>
 
-如上所述， 本项目最终选用基于Xception、DenseNet201、InceptionV3三个基础模型建立的融合模型， 相比基准测试使用的单一Xception模型， 得分得到明显提升。该模型最终在测试集上的得分是`0.03834`，满足了项目要求。
+如上所述， 本项目最终选用基于Xception、DenseNet201、InceptionV3三个基础模型建立的融合模型， 相比基准测试使用的单一Xception模型， 得分得到明显提升。该模型最终在测试集上的得分是`0.03796`，满足了项目要求。
 
 #### 4.2 改进
 
-最初的融合模型没有去除异常值，考虑将异常值可能造成的影响，剔除了39张异常图片，使用同样的模型参数进行训练。异常值查找按以上方法剔除。
-使用去除异常值后的训练值训练模型后，得分提升至了`0.03796`。
+本文只使用了Xception, InceptionV3, DenseNet201三种基础模型进行融合， 还可以尝试其他的模型如Resnet，VGG等其他模型进行迁移-融合学习；另外，先单独对基础模型进行fine-tuning, 放开一些层的权重进行训练，保存特征向量，再融合，相信可以得到更高的分数。
 
 #### 4.3 预测结果查看
 随机取图片验证预测效果， 如下图，准确率非常高， 达99%以上。
